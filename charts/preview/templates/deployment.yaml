@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.app.name }}-pr-{{ .Values.preview.prId }}
+  labels:
+    app: {{ .Values.app.name }}
+    preview: "true"
+    pr: "{{ .Values.preview.prId }}"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name }}
+      preview: "true"
+      pr: "{{ .Values.preview.prId }}"
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name }}
+        preview: "true"
+        pr: "{{ .Values.preview.prId }}"
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: {{ .Values.app.name }}
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/go/src/app/bin/startmeup"]
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          resources:
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+          env:
+          {{- range .Values.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+          {{- end }}
+        - name: worker
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/go/src/app/bin/worker"]
+          resources:
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+          env:
+          {{- range .Values.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+          {{- end }}
+      initContainers:
+        - name: postgres
+          image: postgres:17-alpine
+          restartPolicy: Always
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_INITDB_ARGS
+              value: "-c max_connections=1000"
+            - name: POSTGRES_DB
+              value: startmeup
+            - name: POSTGRES_USER
+              value: startmeup
+            - name: POSTGRES_PASSWORD
+              value: startmeup
+        - name: migrate
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/go/src/app/bin/migrate"]
+          resources:
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+          env:
+          {{- range .Values.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+          {{- end }}

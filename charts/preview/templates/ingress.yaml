@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "200m"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/keep-alive: "3600"
+  generation: 1
+  labels:
+    auth: "false"
+    ingress-class: nginx
+    reverse-proxy: "false"
+    tier: preview
+    tls-enabled: "true"
+    preview: "true"
+    pr: "{{ .Values.preview.prId }}"
+  name: preview-pr-{{ .Values.preview.prId }}
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: {{ .Values.ingress.host }}
+    http:
+      paths:
+      - backend:
+          service:
+            name: {{ .Values.app.name }}-pr-{{ .Values.preview.prId }}
+            port:
+              number: {{ .Values.service.port }}
+        path: /
+        pathType: ImplementationSpecific
+

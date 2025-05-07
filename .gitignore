@@ -1,0 +1,6 @@
+.idea
+dbs
+uploads
+tmp
+bin/*
+bin/

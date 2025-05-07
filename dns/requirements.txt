@@ -1,0 +1,12 @@
+PyYAML==6.0
+dnspython==2.7.0
+fqdn==1.5.1
+idna==3.3
+natsort==8.1.0
+python-dateutil==2.8.2
+six==1.16.0
+octodns==1.11.0
+boto3==1.24.54
+octodns_route53==0.0.5
+octodns_cloudflare==0.0.9
+pycountry_convert==0.7.2

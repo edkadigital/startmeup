@@ -1,0 +1,29 @@
+name: octodns-sync
+
+on:
+  # Sync records whenever DNS changes are pushed to master.
+  push:
+    branches:
+      - main
+    paths:
+      - dns/**
+
+jobs:
+  publish:
+    name: Publish DNS config from master
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: pip install -r requirements.txt
+        working-directory: 'dns'
+      - uses: edkadigital/octodns-sync@main
+        with:
+          config_path: 'dns/config.yaml'
+          doit: '--doit'
+        env:
+          CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          PR_COMMENT_TOKEN: ${{ github.GH_ACCESS_TOKEN }}

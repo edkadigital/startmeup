@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.app.name }}-worker
+  labels:
+    app: {{ .Values.app.name }}-worker
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name }}-worker
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name }}-worker
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: {{ .Values.app.name }}-worker
+          image: "{{ .Values.image.registry }}/startmeup-worker:{{ .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/worker"]
+          env:
+{{ toYaml .Values.env | indent 12 }}

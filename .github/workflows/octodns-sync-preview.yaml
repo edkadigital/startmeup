@@ -1,0 +1,25 @@
+name: octodns-sync-preview
+on:
+  pull_request:
+    paths:
+      - dns/**
+
+jobs:
+  octodns-sync-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: pip install -r requirements.txt
+        working-directory: 'dns'
+      - uses: edkadigital/octodns-sync@main
+        with:
+          config_path: 'dns/config.yaml'
+          add_pr_comment: 'Yes'
+          pr_comment_token: ${{ secrets.GH_ACCESS_TOKEN }}          
+        env:
+          CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          

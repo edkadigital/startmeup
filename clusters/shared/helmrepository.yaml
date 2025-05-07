@@ -1,0 +1,12 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: startmeup
+  namespace: flux-system
+spec:
+  interval: 5m0s
+  url: oci://ghcr.io/edkadigital/charts
+  type: "oci"
+  secretRef:
+    name: docker-registry-github
+---

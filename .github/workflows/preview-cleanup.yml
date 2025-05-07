@@ -1,0 +1,78 @@
+name: "Preview environment"
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to cleanup'
+        required: true
+
+env:
+  GHCR_REGISTRY: ghcr.io/edkadigital
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:  
+  cleanup:
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set PR number
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "PR_NUMBER=${{ github.event.inputs.pr_number }}" >> $GITHUB_ENV
+          else
+            echo "PR_NUMBER=${{ github.event.number }}" >> $GITHUB_ENV
+          fi
+
+      - name: inject slug/short variables
+        uses: rlespinasse/github-slug-action@v5.x
+
+      - name: set STAGE variable in environment for next steps
+        run: echo "STAGE=pr-${{ env.PR_NUMBER }}-${{ env.GITHUB_HEAD_REF_SLUG }}" >> $GITHUB_ENV
+
+      - name: checkout
+        uses: actions/checkout@v4
+        
+      - name: 🔵 Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: 🔵 Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: 🔑 Configure Kubernetes credentials
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+        
+      - name: 🧹 Cleanup preview environment
+        run: |
+          # Verify kubectl connection
+          kubectl get pods -n preview
+          
+          echo "Cleaning up preview environment for PR #${{ env.PR_NUMBER }}"
+
+          # Uninstall Helm release
+          helm uninstall pr-${{ env.PR_NUMBER }} --namespace preview || true
+          
+      - name: Delete GitHub environment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              await github.rest.repos.deleteEnvironment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                environment_name: `preview-${{ env.PR_NUMBER }}`
+              })
+              console.log("Environment deleted successfully");
+            } catch (error) {
+              console.log("Error deleting environment:", error);
+            }
+

@@ -1,0 +1,34 @@
+app:
+  name: startmeup
+
+image:
+  repository: ghcr.io/edkadigital/startmeup-preview
+  tag: latest
+  pullPolicy: IfNotPresent
+
+preview:
+  prId: ""
+  ref: ""
+
+replicaCount: 1
+
+ingress:
+  host: test.startmeup.dev
+
+service:
+  port: 8000
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 512Mi
+  requests:
+    cpu: 5m
+    memory: 5Mi
+
+env:
+  - name: ENV
+    value: test
+  - name: DATABASE_URL
+    value: "postgresql://startmeup:startmeup@localhost:5432/startmeup?sslmode=disable"
+  

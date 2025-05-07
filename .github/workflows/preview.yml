@@ -1,0 +1,159 @@
+name: "Preview environment"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to redeploy'
+        required: true
+
+env:
+  GHCR_REGISTRY: ghcr.io/edkadigital
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set PR number
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "PR_NUMBER=${{ github.event.inputs.pr_number }}" >> $GITHUB_ENV
+          else
+            echo "PR_NUMBER=${{ github.event.number }}" >> $GITHUB_ENV
+          fi
+
+      - name: inject slug/short variables
+        uses: rlespinasse/github-slug-action@v5.x
+
+      - name: set STAGE variable in environment for next steps
+        run: echo "STAGE=pr-${{ env.PR_NUMBER }}-${{ env.GITHUB_HEAD_REF_SLUG }}" >> $GITHUB_ENV
+
+      - name: create a github deployment
+        id: deployment
+        uses: chrnorm/deployment-action@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          environment: ${{ env.STAGE }}
+          ref: ${{ github.head_ref }}
+
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/pull/{0}/head', github.event.inputs.pr_number) || '' }}
+
+      - uses: docker/metadata-action@v5
+        id: metadata
+        with:
+          images:  $GHCR_REGISTRY/startmeup-preview
+
+      - name: Set short SHA
+        id: vars
+        run: |
+          calculatedSha=$(git rev-parse --short ${{ github.sha }})
+          echo "short_sha=$calculatedSha" >> $GITHUB_ENV
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        
+      - name: 🏗️ Build and Push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./
+          file: ./docker/preview.dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+           ${{ env.GHCR_REGISTRY }}/startmeup-preview:pr-${{ env.PR_NUMBER }}-${{ env.short_sha }}
+
+      - name: 🔵 Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: 🔵 Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: 🔑 Configure Kubernetes credentials
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: 🚀 Deploy preview environment
+        run: |
+          # Generate domain name for the preview environment
+          PREVIEW_DOMAIN="preview-${{ env.PR_NUMBER }}.startmeup.dev"
+          
+          # Verify kubectl connection
+          kubectl get pods -n preview
+          
+          # Deploy using Helm
+          helm upgrade --install \
+            --namespace preview \
+            --create-namespace \
+            --wait \
+            --set image.repository=${{ env.GHCR_REGISTRY }}/startmeup-preview \
+            --set image.tag=pr-${{ env.PR_NUMBER }}-${{ env.short_sha }} \
+            --set ingress.host=$PREVIEW_DOMAIN \
+            --set preview.prId=${{ env.PR_NUMBER }} \
+            --set preview.ref=${{ env.GITHUB_HEAD_REF_SLUG }} \
+            pr-${{ env.PR_NUMBER }} \
+            ./charts/preview
+
+      - name: deploy preview environment to Kubernetes
+        id: preview_deploy
+        run: |
+         echo "env_url=https://preview-${{ env.PR_NUMBER }}.startmeup.dev"  >> $GITHUB_ENV
+
+      - name: Update deployment status (success)
+        if: success()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: '${{ github.token }}'
+          environment-url: ${{ env.env_url }}
+          state: 'success'
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+
+      - name: Update deployment status (failure)
+        if: failure()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: '${{ github.token }}'
+          environment-url: ${{ env.env_url }}
+          state: 'failure'
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+
+      - name: Find Comment
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ env.PR_NUMBER }}
+          comment-author: 'github-actions[bot]'
+          body-includes: 'Deploying StartMeUp ⚡ Preview Environment'
+
+      - name: Create or update PR comment
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          issue-number: ${{ env.PR_NUMBER }}
+          body: |
+            ## Deploying StartMeUp ⚡ Preview Environment
+
+            | Latest commit: | `${{ env.short_sha }}` |
+            |:---------------|:------------------------|
+            | **Status:** | ✅ Deploy successful! |
+            | **Preview URL:** | https://preview-${{ env.PR_NUMBER }}.startmeup.dev |
+
+            [View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          edit-mode: replace

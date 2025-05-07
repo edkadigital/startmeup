@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.app.name }}
+  labels:
+    app: {{ .Values.app.name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name }}
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: {{ .Values.app.name }}
+          image: "{{ .Values.image.registry }}/{{ .Values.app.name }}-app:{{ .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          resources: 
+{{ toYaml .Values.resources | indent 12 }}
+          env:
+{{ toYaml .Values.env | indent 12 }}

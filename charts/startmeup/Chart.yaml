@@ -1,0 +1,10 @@
+apiVersion: v1
+appVersion: 0.0.4
+description: A Helm chart for StartMeUp
+name: startmeup
+version: 0.0.1
+icon: https://assets.edka.io/logo.svg
+home: https://github.com/edkadigital/startmeup/tree/main/charts/startmeup
+maintainers:
+    - name: Camil
+      email: camil@edka.io

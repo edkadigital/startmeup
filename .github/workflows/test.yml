@@ -1,0 +1,64 @@
+name: Test
+
+env:
+  ENV: test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: startmeup
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: startmeup_test
+          POSTGRES_INITDB_ARGS: "-c max_connections=1500"
+           # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd "pg_isready --dbname startmeup --username startmeup"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 1.24
+
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Install atlas
+      uses: ariga/setup-atlas@master
+      with:
+        version: latest
+
+    - name: Run migrations
+      env:
+        ENV: test
+      run: make migrate
+
+    - name: Test
+      env:
+        ENV: test
+      run: make test

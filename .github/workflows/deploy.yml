@@ -1,0 +1,132 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  GHCR_REGISTRY: ghcr.io/edkadigital
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🏁 start
+        id: start
+        uses: rtCamp/action-slack-notify@v2.3.3
+        env:
+          SLACK_COLOR: "#ffff00"
+          SLACK_MESSAGE: ":octopus-task: Starting StartMeUp deployment: ${{ github.event.head_commit.message }}"
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_USERNAME: "Deployer"
+          SLACK_ICON: "https://octodex.github.com/images/surftocat.png"
+      - name: 🔵 checkout
+        uses: actions/checkout@v4
+  
+      - name: 🔵 release 
+        id: release
+        uses: rymndhng/release-on-push-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          use_github_release_notes: false
+          bump_version_scheme: patch
+          tag_prefix: ""
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+    permissions: write-all
+  build:
+    name: Build ${{ matrix.name }} Docker image
+    needs: release
+    strategy:
+      matrix:
+        include:
+          - name: app
+            dockerfile: docker/app.dockerfile
+          - name: worker
+            dockerfile: docker/worker.dockerfile
+          - name: migrations
+            dockerfile: docker/migrations.dockerfile
+    permissions: write-all
+
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: 🔵 checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        
+      - name: 🏗️ Build and Push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./
+          file: ./${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: |
+           ${{ env.GHCR_REGISTRY }}/startmeup-${{ matrix.name }}:${{ needs.release.outputs.version }}
+           ${{ env.GHCR_REGISTRY }}/startmeup-${{ matrix.name }}:latest
+           
+  deploy:
+    runs-on: ubuntu-latest
+    needs: 
+      - release
+      - build
+    steps:
+      - name: 🔵 checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🔵 Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: 📦 Package and push charts
+        working-directory: charts
+        run: |
+          helm package startmeup --app-version=${{ needs.release.outputs.version }} --version=${{ needs.release.outputs.version }}
+          helm push startmeup-${{ needs.release.outputs.version }}.tgz oci://ghcr.io/edkadigital/charts
+
+      - name: 🗑️ clean older releases 
+        uses: dev-drprasad/delete-older-releases@v0.3.4
+        with:
+          keep_latest: 30
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🟢 completed
+        id: completed
+        if: success()
+        uses: rtCamp/action-slack-notify@v2.3.3
+        env:
+          SLACK_COLOR: "${{ job.status }}"
+          SLACK_MESSAGE: ":white_check_mark: SUCCESS"
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_USERNAME: "Deployer"
+          SLACK_ICON: "https://octodex.github.com/images/surftocat.png"
+          SLACK_FOOTER: "StartMeUp Deployment"
+  
+      - name: ❌ failure
+        if: failure()
+        id: failure
+        uses: rtCamp/action-slack-notify@v2.3.3
+        env:
+          SLACK_COLOR: "${{ job.status }}"
+          SLACK_MESSAGE: ":alert: Deployment FAILURE"
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_USERNAME: "Deployer"
+          SLACK_ICON: "https://octodex.github.com/images/octocat-de-los-muertos.jpg"
+          SLACK_FOOTER: "StartMeUp Deployment"

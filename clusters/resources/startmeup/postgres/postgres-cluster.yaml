@@ -1,0 +1,148 @@
+######### SECRETS #########
+# Postgres App User
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: startmeup-user
+  namespace: postgres
+spec:
+  refreshInterval: 6h
+  secretStoreRef:
+    name: doppler
+    kind: ClusterSecretStore
+  target:
+    name: startmeup-user
+    creationPolicy: Owner
+  data:
+    - secretKey: password
+      remoteRef:
+        key: POSTGRES_USER_PASSWORD
+    - secretKey: username
+      remoteRef:
+        key: POSTGRES_USER
+---
+# Postgres Superuser
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: startmeup-superuser
+  namespace: postgres
+spec:
+  refreshInterval: 6h
+  secretStoreRef:
+    name: doppler
+    kind: ClusterSecretStore
+  target:
+    name: startmeup-superuser
+    creationPolicy: Owner
+  data:
+    - secretKey: password
+      remoteRef:
+        key: POSTGRES_SUPERUSER_PASSWORD
+    - secretKey: username
+      remoteRef:
+        key: POSTGRES_SUPERUSER
+---
+# Postgres Backup Credentials
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: db-backup-creds
+  namespace: postgres
+spec:
+  refreshInterval: 6h
+  secretStoreRef:
+    name: doppler
+    kind: ClusterSecretStore
+  target:
+    name: db-backup-creds
+    creationPolicy: Owner
+  data:
+    - secretKey: ACCESS_KEY_ID
+      remoteRef:
+        key: ACCESS_KEY_ID
+    - secretKey: ACCESS_SECRET_KEY
+      remoteRef:
+        key: ACCESS_SECRET_KEY
+---
+######### CLUSTER #########
+# Postgres Cluster
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: startmeup
+  namespace: postgres
+spec:
+  description: "Startmeup Postgres Cluster"
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.4
+  # imagePullSecret is only required if the images are located in a private registry
+  # imagePullSecrets:
+  #   - name: private_registry_access
+  instances: 2
+  startDelay: 300
+  stopDelay: 300
+  primaryUpdateStrategy: unsupervised
+
+  postgresql:
+    parameters:
+      shared_buffers: 256MB
+      pg_stat_statements.max: '10000'
+      pg_stat_statements.track: all
+      auto_explain.log_min_duration: '10s'
+    pg_hba:
+      - host all all 10.244.0.0/16 md5
+
+  bootstrap:
+    initdb:
+      database: startmeup
+      owner: startmeup
+      secret:
+        name: startmeup-user
+    # Alternative bootstrap method: start from a backup
+    #recovery:
+    #  backup:
+    #    name: backup-example
+
+  enableSuperuserAccess: true
+  superuserSecret:
+    name: startmeup-superuser
+
+  storage:
+    storageClass: hcloud-volumes
+    size: 10Gi
+
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://startmeup-db-backup/
+      s3Credentials:
+        accessKeyId:
+          name: db-backup-creds
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: db-backup-creds
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+        encryption: AES256
+      data:
+        compression: gzip
+        encryption: AES256
+        immediateCheckpoint: false
+        jobs: 2
+    retentionPolicy: "30d"
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "1Gi"
+      cpu: "2000m"
+
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: failure-domain.beta.kubernetes.io/zone
+
+  nodeMaintenanceWindow:
+    inProgress: false
+    reusePVC: false

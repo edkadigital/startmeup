@@ -1,0 +1,11 @@
+charts/
+docker/
+bin/
+.git*
+.DS_Store
+.idea/
+.vscode/
+.env
+README.md
+.dockerignore
+.golangci.yml

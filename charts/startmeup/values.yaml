@@ -1,0 +1,34 @@
+app:
+  name: startmeup
+
+image:
+  registry: ghcr.io/edkadigital
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+ingress:
+  clusterIssuer: letsencrypt-http
+  host: go.startmeup.dev
+
+service:
+  port: 8000
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 100m
+    memory: 50Mi
+
+env:
+  - name: ENV
+    value: production
+  # sensitive values
+  - name: DATABASE_URL
+    valueFrom:
+      secretKeyRef:
+        name: startmeup
+        key: DATABASE_URL
+  

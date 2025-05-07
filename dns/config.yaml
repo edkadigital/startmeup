@@ -1,0 +1,38 @@
+---
+manager:
+  include_meta: False
+  max_workers: 2
+  plan_outputs:
+    html:
+      class: octodns.provider.plan.PlanHtml
+providers:
+  git:
+    class: octodns.provider.yaml.YamlProvider
+    directory: ./dns/zones
+    default_ttl: 300
+    enforce_order: False
+  cloudflare:
+    class: octodns_cloudflare.CloudflareProvider
+    token: env/CLOUDFLARE_TOKEN
+processors:
+  not-these-types:
+    class: octodns.processor.filter.TypeRejectlistFilter
+    rejectlist:
+      - R2
+      - SOA
+      - URLFWD
+  not-these-names:
+    class: octodns.processor.filter.NameRejectlistFilter
+    rejectlist:
+      - assets
+      - charts
+zones:
+  startmeup.dev.:
+    lenient: true
+    processors:
+      - not-these-types
+      - not-these-names
+    sources:
+      - git
+    targets:
+      - cloudflare

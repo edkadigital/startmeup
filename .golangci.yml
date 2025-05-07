@@ -1,0 +1,11 @@
+version: "2"
+
+linters:
+  settings:
+    staticcheck:
+      dot-import-whitelist:
+        - "maragu.dev/gomponents/html"
+        - "maragu.dev/gomponents"
+        - "github.com/edkadigital/startmeup/pkg/ui"
+        - "github.com/edkadigital/startmeup/pkg/ui/components"
+        - "maragu.dev/gomponents/components"
