@@ -48,7 +48,7 @@ func Home(ctx echo.Context, posts *models.Posts) error {
 							Iff(r.IsAuth, func() Node {
 								return Text(fmt.Sprintf("Hello, %s", r.AuthUser.Name))
 							}),
-							If(!r.IsAuth, Text("Hello from Feature 1")),
+							If(!r.IsAuth, Text("Hello from Feature 2")),
 						),
 						H2(
 							Class("subtitle"),
