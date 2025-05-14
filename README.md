@@ -12,7 +12,7 @@ This repository is a modified fork of [Pagoda](https://github.com/mikestefanello
 Here we are using it as a reference stack that showcases how the **[Edka](https://edka.io)** platform provisions and manages the infrastructure with GitOps, creates preview environments for every pull request and deploys code to production. Use it as a fast-start template or simply explore how everything fits together.
 
 ---
-
+Update.
 ## Table of Contents
 1. [Key Advantages](#key-advantages)
 2. [What's in the Box?](#whats-in-the-box)
