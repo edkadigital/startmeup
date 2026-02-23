@@ -1,0 +1,19 @@
+{{- if .Values.api.service.enabled }}
+{{- $apiServiceName := default (printf "%s-api" .Values.app.name) .Values.api.service.name }}
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: {{ .Values.app.name }}
+  name: {{ $apiServiceName }}
+spec:
+  ports:
+  - name: http
+    port: {{ .Values.api.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.api.port }}
+  selector:
+    app: {{ .Values.app.name }}
+  sessionAffinity: None
+  type: {{ .Values.api.service.type }}
+{{- end }}

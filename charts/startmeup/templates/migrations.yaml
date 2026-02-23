@@ -14,8 +14,8 @@ spec:
       restartPolicy: Never
       containers:
       - name: migrations
-        image: "{{ .Values.image.registry }}/{{ .Values.app.name }}-migrations:{{ .Chart.AppVersion }}"
+        image: "{{ .Values.migrations.image.repository }}:{{ default .Chart.AppVersion .Values.migrations.image.tag }}"
         command: ["migrate"]
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.migrations.image.pullPolicy }}
         env:
 {{ toYaml .Values.env | indent 8 }}

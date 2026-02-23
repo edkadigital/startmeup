@@ -1,0 +1,43 @@
+{{- if and .Values.api.service.enabled .Values.api.ingress.enabled }}
+{{- $apiHost := default .Values.ingress.host .Values.api.ingress.host }}
+{{- $apiServiceName := default (printf "%s-api" .Values.app.name) .Values.api.service.name }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: {{ default .Values.ingress.clusterIssuer .Values.api.ingress.clusterIssuer }}
+    nginx.ingress.kubernetes.io: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "200m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/keep-alive: "3600"
+  generation: 1
+  labels:
+    auth: "false"
+    ingress-class: nginx
+    reverse-proxy: "false"
+    tier: production
+    tls-enabled: "true"
+  name: {{ .Values.app.name }}-api
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: {{ $apiHost }}
+    http:
+      paths:
+      - backend:
+          service:
+            name: {{ $apiServiceName }}
+            port:
+              number: {{ .Values.api.service.port }}
+
+        path: {{ .Values.api.ingress.path }}
+        pathType: {{ .Values.api.ingress.pathType }}
+{{- if .Values.api.ingress.tls.enabled }}
+  tls:
+  - hosts:
+    - {{ $apiHost }}
+    secretName: {{ default $apiHost .Values.api.ingress.tls.secretName }}
+{{- end }}
+{{- end }}

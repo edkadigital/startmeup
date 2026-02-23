@@ -28,7 +28,7 @@ spec:
           service:
             name: {{ .Values.app.name }}
             port:
-              number: {{ .Values.service.port }}
+              number: {{ .Values.app.service.port }}
 
         path: /
         pathType: ImplementationSpecific

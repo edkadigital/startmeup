@@ -1,18 +1,52 @@
 app:
   name: startmeup
-
-image:
-  registry: ghcr.io/edkadigital
-  pullPolicy: IfNotPresent
-
-replicaCount: 2
+  service:
+    port: 8000
+  image:
+    repository: ghcr.io/edkadigital/startmeup-app
+    tag: ""
+    pullPolicy: IfNotPresent
 
 ingress:
   clusterIssuer: letsencrypt-http
   host: go.startmeup.dev
 
-service:
-  port: 8000
+api:
+  port: 8888
+  image:
+    repository: ghcr.io/edkadigital/startmeup-api
+    tag: ""
+    pullPolicy: IfNotPresent
+  service:
+    enabled: true
+    name: ""
+    port: 8888
+    type: ClusterIP
+  ingress:
+    enabled: true
+    clusterIssuer: ""
+    host: ""
+    path: /api
+    pathType: Prefix
+    tls:
+      enabled: true
+      secretName: ""
+
+worker:
+  image:
+    repository: ghcr.io/edkadigital/startmeup-worker
+    tag: ""
+    pullPolicy: IfNotPresent
+
+migrations:
+  image:
+    repository: ghcr.io/edkadigital/startmeup-migrations
+    tag: ""
+    pullPolicy: IfNotPresent
+
+replicaCount:
+  app: 2
+  worker: 2
 
 resources:
   limits:

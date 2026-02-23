@@ -7,9 +7,9 @@ metadata:
 spec:
   ports:
   - name: http
-    port: {{ .Values.service.port }}
+    port: {{ .Values.app.service.port }}
     protocol: TCP
-    targetPort: {{ .Values.service.port }}
+    targetPort: {{ .Values.app.service.port }}
   selector:
     app: {{ .Values.app.name }}
   sessionAffinity: None

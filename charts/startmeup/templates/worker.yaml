@@ -5,7 +5,7 @@ metadata:
   labels:
     app: {{ .Values.app.name }}-worker
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.replicaCount.worker }}
   selector:
     matchLabels:
       app: {{ .Values.app.name }}-worker
@@ -17,8 +17,8 @@ spec:
       restartPolicy: Always
       containers:
         - name: {{ .Values.app.name }}-worker
-          image: "{{ .Values.image.registry }}/startmeup-worker:{{ .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: "{{ .Values.worker.image.repository }}:{{ default .Chart.AppVersion .Values.worker.image.tag }}"
+          imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
           command: ["/worker"]
           env:
 {{ toYaml .Values.env | indent 12 }}
