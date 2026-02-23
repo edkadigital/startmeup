@@ -9,7 +9,7 @@ app:
 
 ingress:
   clusterIssuer: letsencrypt-http
-  host: go.startmeup.dev
+  host: app.startmeup.dev
 
 api:
   port: 8888
@@ -25,8 +25,8 @@ api:
   ingress:
     enabled: true
     clusterIssuer: ""
-    host: ""
-    path: /api
+    host: api.startmeup.dev
+    path: /
     pathType: Prefix
     tls:
       enabled: true

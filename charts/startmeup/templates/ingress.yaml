@@ -1,3 +1,5 @@
+{{- $apiHost := default .Values.ingress.host .Values.api.ingress.host }}
+{{- $apiServiceName := default (printf "%s-api" .Values.app.name) .Values.api.service.name }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -32,7 +34,35 @@ spec:
 
         path: /
         pathType: ImplementationSpecific
+{{- if and .Values.api.service.enabled .Values.api.ingress.enabled (eq $apiHost .Values.ingress.host) }}
+      - backend:
+          service:
+            name: {{ $apiServiceName }}
+            port:
+              number: {{ .Values.api.service.port }}
+
+        path: {{ .Values.api.ingress.path }}
+        pathType: {{ .Values.api.ingress.pathType }}
+{{- end }}
+{{- if and .Values.api.service.enabled .Values.api.ingress.enabled (ne $apiHost .Values.ingress.host) }}
+  - host: {{ $apiHost }}
+    http:
+      paths:
+      - backend:
+          service:
+            name: {{ $apiServiceName }}
+            port:
+              number: {{ .Values.api.service.port }}
+
+        path: {{ .Values.api.ingress.path }}
+        pathType: {{ .Values.api.ingress.pathType }}
+{{- end }}
   tls:
   - hosts:
     - {{ .Values.ingress.host }}
     secretName: {{ .Values.ingress.host }}
+{{- if and .Values.api.service.enabled .Values.api.ingress.enabled (ne $apiHost .Values.ingress.host) }}
+  - hosts:
+    - {{ $apiHost }}
+    secretName: {{ default $apiHost .Values.api.ingress.tls.secretName }}
+{{- end }}
